@@ -24,11 +24,11 @@ export interface Snapshot {
   time: number;
   targets: Target[];
   budget: Budget;
-  /** True when this is a previous snapshot re-served because the fetch failed. */
-  degraded: boolean;
-  /** Present when degraded: why the live fetch did not happen. */
-  reason?: string;
 }
+
+// There is deliberately no `degraded` flag here. Whether the display is showing
+// live data or the last thing that worked is the display's own state, not a
+// property of a snapshot that by definition succeeded.
 
 const readBudget = (headers: Headers): Budget => {
   const remaining = headers.get('x-rate-limit-remaining');
@@ -91,7 +91,6 @@ export async function fetchSnapshot(options: FetchOptions): Promise<Snapshot> {
     time: body.time,
     targets: (body.states ?? []).map(row => parseStateVector(row, body.time)),
     budget: readBudget(response.headers),
-    degraded: false,
   };
 }
 

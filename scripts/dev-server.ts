@@ -10,7 +10,7 @@
 
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { extname, normalize, join } from 'node:path';
+import { extname, normalize } from 'node:path';
 import handler from '../api/states.ts';
 import { stripModule } from './strip.ts';
 import { mockSnapshot } from './mock.ts';
