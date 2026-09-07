@@ -142,15 +142,17 @@ a third party at runtime.
 ```
 src/core/      geo · target · box    pure functions, no DOM, no network
 src/server/    token · opensky       the only code that talks to OpenSky
-api/states.ts  the endpoint          Web Request/Response, host-agnostic
+api/states.ts  the endpoint          Web Request/Response, exported as GET
 public/        the display           canvas, one stylesheet, no framework
 scripts/       dev-server · strip · mock · probe
 test/          46 tests, fixture-backed
 ```
 
-`api/states.ts` is written against the Web platform's `Request` and `Response`,
-so the same file runs on Vercel, on Cloudflare Workers, and in the local dev
-server without changing a line.
+`api/states.ts` takes a Web `Request` and returns a Web `Response`, exported as
+a named `GET` rather than as a default export — a default export is read as the
+Node `(req, res)` signature, where a returned `Response` is ignored and the
+request hangs. The local dev server imports the very same function, so what runs
+in development is what runs in production.
 
 ## Deploy
 
