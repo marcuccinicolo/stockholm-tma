@@ -1,0 +1,14 @@
+{
+  "name": "final-approach",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A live air traffic display that never lies about how old its data is.",
+  "scripts": {
+    "test": "node --test",
+    "dev": "node scripts/dev-server.ts"
+  },
+  "engines": {
+    "node": ">=22.18"
+  }
+}
