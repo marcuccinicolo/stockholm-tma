@@ -197,3 +197,6 @@ body {
   .sidebar { flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--rule); }
   .sidebar > :last-child { margin-top: 0; }
 }
+
+.legend__note a { color: var(--ink-soft); }
+.legend__note a:hover { color: var(--ink); }

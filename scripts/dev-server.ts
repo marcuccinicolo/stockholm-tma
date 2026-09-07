@@ -88,7 +88,7 @@ const server = createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   const configured = process.env.OPENSKY_CLIENT_ID && process.env.OPENSKY_CLIENT_SECRET;
-  console.log(`final-approach dev server → http://localhost:${PORT}`);
+  console.log(`stockholm-tma dev server → http://localhost:${PORT}`);
   console.log(`  data endpoint            → http://localhost:${PORT}/api/states`);
   console.log(configured
     ? '  credentials              → loaded'

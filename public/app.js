@@ -82,7 +82,12 @@ function resize() {
 
 /* ----------------------------------------------------------------- drawing */
 
+/** Screen positions of labels already drawn this frame, to avoid a pile-up. */
+let labelSlots = [];
+
 const COLOURS = {
+  coast: '#2b3d49',
+  lake: '#213039',
   live: '#e6edf2',
   aging: '#8d9aa5',
   stale: '#5c6871',
@@ -108,6 +113,44 @@ function drawGrid(w, h) {
   ctx.restore();
 }
 
+/**
+ * Coastline and lakes, traced once from OpenStreetMap and frozen into a file.
+ *
+ * No tile server, no map library, no API key, nothing fetched from a third
+ * party at runtime: the geography is 171 KB of line strings that ship with the
+ * app. It was 1.8 million points as downloaded; anything finer than half a
+ * pixel at this scale is invisible, so it is simplified down to under 10,000.
+ */
+let geography = null;
+
+fetch('/data/geography.json')
+  .then(r => r.json())
+  .then(data => { geography = data; })
+  .catch(error => console.warn('geography unavailable, scope stays empty:', error));
+
+function drawGeography() {
+  if (!geography) return;
+  ctx.save();
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 1;
+
+  for (const [key, colour] of [['lakes', COLOURS.lake], ['coast', COLOURS.coast]]) {
+    ctx.strokeStyle = colour;
+    ctx.beginPath();
+    for (const line of geography[key] ?? []) {
+      let first = true;
+      for (const [lon, lat] of line) {
+        const { x, y } = toScreen({ lat, lon });
+        if (first) { ctx.moveTo(x, y); first = false; } else { ctx.lineTo(x, y); }
+      }
+    }
+    // One stroke for every line of a layer: 1,400 separate strokes would cost
+    // far more than a single path with 1,400 subpaths.
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 /** Airports, so the picture is anchored to something recognisable. */
 const AIRPORTS = [
   { name: 'ESSA Arlanda', lat: 59.6519, lon: 17.9186 },
@@ -127,13 +170,13 @@ function drawAirports() {
     ctx.beginPath();
     ctx.arc(x, y, 4, 0, Math.PI * 2);
     ctx.stroke();
-    ctx.fillText(airport.name, x + 8, y + 3);
+    // Airports claim their label slot first: they are the fixed reference the
+    // rest of the picture is read against, so a passing aircraft must not
+    // cover Arlanda's name.
+    if (claimLabelSlot(x, y)) ctx.fillText(airport.name, x + 8, y + 3);
   }
   ctx.restore();
 }
-
-/** Screen positions of labels already drawn this frame, to avoid a pile-up. */
-let labelSlots = [];
 
 /**
  * Around Arlanda a dozen targets sit within a few pixels of each other and
@@ -228,6 +271,7 @@ function render() {
 
   ctx.clearRect(0, 0, w, h);
   labelSlots = [];
+  drawGeography();
   drawGrid(w, h);
   drawAirports();
 
