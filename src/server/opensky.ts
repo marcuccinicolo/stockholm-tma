@@ -8,24 +8,9 @@
 import { parseStateVector, type StateVector, type Target } from '../core/target.ts';
 import type { TokenManager } from './token.ts';
 
-export interface BoundingBox {
-  lamin: number;
-  lomin: number;
-  lamax: number;
-  lomax: number;
-}
-
-/** Stockholm: Arlanda, Bromma and the approaches. 2.6 sq°, so 1 credit a call. */
-export const STOCKHOLM: BoundingBox = { lamin: 59.0, lomin: 17.0, lamax: 60.3, lomax: 19.0 };
-
-/** Credits charged per `/states/all` call, by bounding-box area in square degrees. */
-export function creditCost(box: BoundingBox): number {
-  const area = (box.lamax - box.lamin) * (box.lomax - box.lomin);
-  if (area <= 25) return 1;
-  if (area <= 100) return 2;
-  if (area <= 400) return 3;
-  return 4;
-}
+// The box and its cost live in core, because the browser needs them too.
+export { STOCKHOLM, creditCost, type BoundingBox } from '../core/box.ts';
+import { STOCKHOLM, type BoundingBox } from '../core/box.ts';
 
 export interface Budget {
   /** Credits left in today's allowance, as reported by OpenSky. Null if absent. */

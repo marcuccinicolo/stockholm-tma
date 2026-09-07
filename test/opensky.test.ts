@@ -34,6 +34,16 @@ test('the Stockholm box stays inside the one-credit band', () => {
   assert.ok(area <= 25, `box is ${area} sq°, which would cost more than one credit`);
 });
 
+test('the box is shaped for a landscape screen once projected', () => {
+  // A degree of longitude shrinks with latitude, so the box has to be wider in
+  // longitude than it looks to come out roughly 16:9 on screen.
+  const midLat = (STOCKHOLM.lamin + STOCKHOLM.lamax) / 2;
+  const spanLat = STOCKHOLM.lamax - STOCKHOLM.lamin;
+  const spanLon = (STOCKHOLM.lomax - STOCKHOLM.lomin) * Math.cos((midLat * Math.PI) / 180);
+  const aspect = spanLon / spanLat;
+  assert.ok(aspect > 1.5 && aspect < 2.1, `projected aspect is ${aspect.toFixed(2)}:1`);
+});
+
 test('a snapshot carries the server clock, the targets and the budget', async () => {
   const snapshot = await fetchSnapshot({
     tokens: tokenStub(),
@@ -55,8 +65,9 @@ test('the bounding box is sent as query parameters', async () => {
     fetchImpl: (async (url: string) => { seen = String(url); return okResponse(); }) as unknown as typeof fetch,
   });
 
-  assert.match(seen, /lamin=59/);
-  assert.match(seen, /lomax=19/);
+  // Asserted against the box itself, so widening it is not a test failure.
+  assert.match(seen, new RegExp(`lamin=${STOCKHOLM.lamin}`));
+  assert.match(seen, new RegExp(`lomax=${STOCKHOLM.lomax}`));
 });
 
 test('an expired token is refreshed and the call retried exactly once', async () => {

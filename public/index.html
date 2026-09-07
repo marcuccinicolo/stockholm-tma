@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Final Approach — live traffic over Stockholm</title>
+<meta name="description" content="A live air traffic display for the Stockholm terminal area that never lies about how old its data is.">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<div class="layout">
+<div class="sidebar">
+
+<header class="hud">
+  <h1>Final Approach</h1>
+  <p class="hud__sub">Stockholm terminal area · Arlanda and Bromma</p>
+
+  <dl class="readout">
+    <div><dt>Status</dt><dd><span id="status" class="pill">connecting</span></dd></div>
+    <div><dt>Contacts</dt><dd><span id="count">—</span></dd></div>
+    <div><dt>Oldest fix</dt><dd><span id="oldest">—</span></dd></div>
+    <div><dt>Snapshot</dt><dd><span id="snapshot-age">—</span></dd></div>
+    <div><dt>Data budget</dt><dd><span id="budget">—</span></dd></div>
+  </dl>
+</header>
+
+<aside class="hud">
+  <h2>How to read it</h2>
+  <ul class="legend">
+    <li><span class="swatch swatch--live"></span>Reported within 15 s</li>
+    <li><span class="swatch swatch--aging"></span>15–60 s old</li>
+    <li><span class="swatch swatch--stale"></span>Over a minute old</li>
+    <li><span class="swatch swatch--frozen"></span>Position frozen — too old to extrapolate</li>
+    <li><span class="swatch swatch--mlat"></span>Multilaterated, less precise than ADS-B</li>
+    <li><span class="swatch swatch--ground"></span>On the ground</li>
+  </ul>
+  <p class="legend__note">
+    Aircraft move between updates by dead reckoning from their last reported
+    heading and speed. After 30 seconds without a fix the estimate stops and
+    the symbol is marked, because past that it would be a guess.
+  </p>
+</aside>
+
+</div>
+
+<main class="scope-wrap">
+  <canvas id="scope" aria-hidden="true"></canvas>
+</main>
+</div>
+
+<div id="tooltip" class="tooltip" hidden></div>
+
+<!-- The canvas is decorative to assistive technology; this is the real content. -->
+<section class="sr-only" aria-labelledby="table-heading">
+  <h2 id="table-heading">Aircraft currently displayed</h2>
+  <p id="live-status" role="status"></p>
+  <table>
+    <caption>Callsign, altitude, ground speed, and how old each position is</caption>
+    <thead>
+      <tr>
+        <th scope="col">Callsign</th><th scope="col">Altitude</th>
+        <th scope="col">Speed</th><th scope="col">Track</th>
+        <th scope="col">Position age</th><th scope="col">Source</th>
+      </tr>
+    </thead>
+    <tbody id="table-body"></tbody>
+  </table>
+</section>
+
+<script type="module" src="/app.js"></script>
+</body>
+</html>

@@ -12,6 +12,8 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, normalize, join } from 'node:path';
 import handler from '../api/states.ts';
+import { stripModule } from './strip.ts';
+import { mockSnapshot } from './mock.ts';
 
 const PORT = Number(process.env.PORT ?? 8787);
 const PUBLIC_DIR = new URL('../public/', import.meta.url);
@@ -29,7 +31,30 @@ let callsThisSession = 0;
 const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', `http://localhost:${PORT}`);
 
+  // The core is served to the browser as the same source the tests import,
+  // with types stripped on the fly. No build step, and no second copy of the
+  // projection maths that could drift from the tested one.
+  if (url.pathname.startsWith('/core/') && url.pathname.endsWith('.js')) {
+    const name = url.pathname.slice('/core/'.length).replace(/\.js$/, '.ts');
+    try {
+      res.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8' });
+      res.end(await stripModule(name));
+    } catch {
+      res.writeHead(404).end('no such core module');
+    }
+    return;
+  }
+
   if (url.pathname === '/api/states') {
+    // MOCK=1 replays a recorded snapshot, so the display can be developed and
+    // screenshotted without spending credits — or credentials.
+    if (process.env.MOCK === '1') {
+      const body = JSON.stringify(await mockSnapshot());
+      console.log('200 /api/states  · MOCK, no credit spent');
+      res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+      res.end(body);
+      return;
+    }
     callsThisSession++;
     const response = await handler(new Request(url, { method: req.method }));
     const body = await response.text();
