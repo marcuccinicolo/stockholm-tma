@@ -6,7 +6,7 @@
   "description": "A live air traffic display that never lies about how old its data is.",
   "scripts": {
     "test": "node --test",
-    "dev": "node scripts/dev-server.ts"
+    "dev": "node --env-file=.env.local scripts/dev-server.ts"
   },
   "engines": {
     "node": ">=22.18"
