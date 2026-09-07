@@ -11,6 +11,10 @@
 // and only one request per window reaches this function at all. Ten viewers or
 // two hundred cost the same.
 
+// `process` without pulling in @types/node, which would be the project's first
+// dependency for the sake of one global.
+declare const process: { env: Record<string, string | undefined> };
+
 import { TokenManager } from '../src/server/token.ts';
 import { fetchSnapshot, creditCost, RateLimitError, STOCKHOLM } from '../src/server/opensky.ts';
 
@@ -36,7 +40,11 @@ function getTokens(): TokenManager {
   return tokens;
 }
 
-export default async function handler(_request: Request): Promise<Response> {
+// Exported as a named HTTP method, not as a default export. A default export
+// is interpreted as the Node `(req, res) => void` signature, where a returned
+// Response is silently ignored and the request hangs until it times out —
+// which is exactly what happened the first time this was deployed.
+export async function GET(_request: Request): Promise<Response> {
   try {
     const snapshot = await fetchSnapshot({ tokens: getTokens(), box: STOCKHOLM });
 

@@ -11,7 +11,7 @@
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, normalize } from 'node:path';
-import handler from '../api/states.ts';
+import { GET } from '../api/states.ts';
 import { stripModule } from './strip.ts';
 import { mockSnapshot } from './mock.ts';
 
@@ -56,7 +56,7 @@ const server = createServer(async (req, res) => {
       return;
     }
     callsThisSession++;
-    const response = await handler(new Request(url, { method: req.method }));
+    const response = await GET(new Request(url, { method: req.method }));
     const body = await response.text();
 
     const remaining = (() => {
