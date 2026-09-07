@@ -55,7 +55,6 @@ test('a snapshot carries the server clock, the targets and the budget', async ()
   assert.equal(snapshot.targets[0]!.callsign, 'NSZ56J');
   assert.equal(snapshot.targets[0]!.ageAtFetch, 5);
   assert.equal(snapshot.budget.remaining, 3999);
-  assert.equal(snapshot.degraded, false);
 });
 
 test('the bounding box is sent as query parameters', async () => {

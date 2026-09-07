@@ -30,7 +30,6 @@ export async function mockSnapshot() {
     time: now,
     targets: states.map(row => parseStateVector(row, now)),
     budget: { remaining: null, retryAfter: null },
-    degraded: false,
     mock: true,
     cost: creditCost(STOCKHOLM),
   };
