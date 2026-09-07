@@ -1,0 +1,126 @@
+// The one place that talks to OpenSky.
+//
+// It answers a single question — what is in this box right now — and it answers
+// it in a way the display can trust: every response says how old its data is,
+// how much of the daily budget is left, and whether what you are holding is
+// live or the last thing that worked.
+
+import { parseStateVector, type StateVector, type Target } from '../core/target.ts';
+import type { TokenManager } from './token.ts';
+
+export interface BoundingBox {
+  lamin: number;
+  lomin: number;
+  lamax: number;
+  lomax: number;
+}
+
+/** Stockholm: Arlanda, Bromma and the approaches. 2.6 sq°, so 1 credit a call. */
+export const STOCKHOLM: BoundingBox = { lamin: 59.0, lomin: 17.0, lamax: 60.3, lomax: 19.0 };
+
+/** Credits charged per `/states/all` call, by bounding-box area in square degrees. */
+export function creditCost(box: BoundingBox): number {
+  const area = (box.lamax - box.lamin) * (box.lomax - box.lomin);
+  if (area <= 25) return 1;
+  if (area <= 100) return 2;
+  if (area <= 400) return 3;
+  return 4;
+}
+
+export interface Budget {
+  /** Credits left in today's allowance, as reported by OpenSky. Null if absent. */
+  remaining: number | null;
+  /** Seconds to wait, present only when the allowance is exhausted. */
+  retryAfter: number | null;
+}
+
+export interface Snapshot {
+  /** OpenSky's own clock for this response. Every age on the display derives from it. */
+  time: number;
+  targets: Target[];
+  budget: Budget;
+  /** True when this is a previous snapshot re-served because the fetch failed. */
+  degraded: boolean;
+  /** Present when degraded: why the live fetch did not happen. */
+  reason?: string;
+}
+
+const readBudget = (headers: Headers): Budget => {
+  const remaining = headers.get('x-rate-limit-remaining');
+  const retryAfter = headers.get('x-rate-limit-retry-after-seconds');
+  return {
+    remaining: remaining === null ? null : Number(remaining),
+    retryAfter: retryAfter === null ? null : Number(retryAfter),
+  };
+};
+
+export interface FetchOptions {
+  tokens: TokenManager;
+  box?: BoundingBox;
+  fetchImpl?: typeof fetch;
+  baseUrl?: string;
+}
+
+/**
+ * One authenticated read of the box.
+ *
+ * A 401 is retried exactly once with a fresh token: tokens expire on a clock we
+ * do not control, and a single retry is the difference between a blip and a
+ * blank screen. Anything else is thrown for the caller to turn into a degraded
+ * response — this function does not decide what the display should show.
+ */
+export async function fetchSnapshot(options: FetchOptions): Promise<Snapshot> {
+  const {
+    tokens,
+    box = STOCKHOLM,
+    fetchImpl = fetch,
+    baseUrl = 'https://opensky-network.org/api',
+  } = options;
+
+  const url = `${baseUrl}/states/all?${new URLSearchParams(
+    Object.entries(box).map(([k, v]) => [k, String(v)]),
+  )}`;
+
+  const call = async (token: string) =>
+    fetchImpl(url, { headers: { authorization: `Bearer ${token}` } });
+
+  let response = await call(await tokens.getToken());
+
+  if (response.status === 401) {
+    tokens.invalidate();
+    response = await call(await tokens.getToken());
+  }
+
+  if (response.status === 429) {
+    const budget = readBudget(response.headers);
+    throw new RateLimitError(budget.retryAfter ?? 60, budget);
+  }
+
+  if (!response.ok) {
+    throw new Error(`OpenSky returned ${response.status} ${response.statusText}`);
+  }
+
+  const body = await response.json() as { time: number; states: StateVector[] | null };
+
+  return {
+    time: body.time,
+    targets: (body.states ?? []).map(row => parseStateVector(row, body.time)),
+    budget: readBudget(response.headers),
+    degraded: false,
+  };
+}
+
+export class RateLimitError extends Error {
+  // Fields are declared and assigned explicitly rather than written as
+  // constructor parameter properties: Node strips types, it does not compile
+  // them, and a parameter property would need code to be generated.
+  readonly retryAfterSeconds: number;
+  readonly budget: Budget;
+
+  constructor(retryAfterSeconds: number, budget: Budget) {
+    super(`daily credit allowance exhausted; retry in ${retryAfterSeconds}s`);
+    this.name = 'RateLimitError';
+    this.retryAfterSeconds = retryAfterSeconds;
+    this.budget = budget;
+  }
+}
