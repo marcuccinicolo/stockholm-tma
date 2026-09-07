@@ -1,9 +1,9 @@
 {
-  "name": "final-approach",
+  "name": "stockholm-tma",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "A live air traffic display that never lies about how old its data is.",
+  "description": "A live display of the Stockholm terminal control area that never lies about how old its data is.",
   "scripts": {
     "test": "node --test",
     "dev": "node --env-file=.env.local scripts/dev-server.ts"

@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Final Approach — live traffic over Stockholm</title>
-<meta name="description" content="A live air traffic display for the Stockholm terminal area that never lies about how old its data is.">
+<title>Stockholm TMA — live traffic, and how old it is</title>
+<meta name="description" content="Live traffic in the Stockholm terminal control area, showing how old every position on screen actually is.">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -13,8 +13,8 @@
 <div class="sidebar">
 
 <header class="hud">
-  <h1>Final Approach</h1>
-  <p class="hud__sub">Stockholm terminal area · Arlanda and Bromma</p>
+  <h1>Stockholm TMA</h1>
+  <p class="hud__sub">Terminal control area · Arlanda, Bromma, Skavsta</p>
 
   <dl class="readout">
     <div><dt>Status</dt><dd><span id="status" class="pill">connecting</span></dd></div>
@@ -39,6 +39,12 @@
     Aircraft move between updates by dead reckoning from their last reported
     heading and speed. After 30 seconds without a fix the estimate stops and
     the symbol is marked, because past that it would be a guess.
+  </p>
+  <p class="legend__note">
+    Coastline and lakes traced from
+    <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a>,
+    © its contributors, ODbL. Simplified and shipped with the page — no tile
+    server, no map library.
   </p>
 </aside>
 
