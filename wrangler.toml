@@ -1,0 +1,15 @@
+# Cloudflare Worker serving the one endpoint. The display itself stays on
+# static hosting; only the upstream call lives here, because Vercel's egress
+# cannot reach OpenSky.
+#
+#   npx wrangler login
+#   npx wrangler secret put OPENSKY_CLIENT_SECRET
+#   npx wrangler deploy
+
+name = "stockholm-tma-api"
+main = "worker.ts"
+compatibility_date = "2026-09-01"
+
+[vars]
+OPENSKY_CLIENT_ID = "niglo_11-api-client"
+# OPENSKY_CLIENT_SECRET is set with `wrangler secret put`, never in this file.

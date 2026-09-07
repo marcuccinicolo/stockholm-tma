@@ -5,5 +5,8 @@
     "api/*.ts": {
       "includeFiles": "src/**"
     }
-  }
+  },
+  "regions": [
+    "arn1"
+  ]
 }
