@@ -23,6 +23,12 @@ export interface Snapshot {
   /** OpenSky's own clock for this response. Every age on the display derives from it. */
   time: number;
   targets: Target[];
+  /**
+   * The untouched rows behind `targets`. Kept so a recording can be written
+   * from the same response the display was served, rather than costing a
+   * second call for the same data.
+   */
+  raw: StateVector[];
   budget: Budget;
 }
 
@@ -58,7 +64,7 @@ export async function fetchSnapshot(options: FetchOptions): Promise<Snapshot> {
   const {
     tokens,
     box = STOCKHOLM,
-    fetchImpl = fetch,
+    fetchImpl = globalThis.fetch.bind(globalThis),
     baseUrl = 'https://opensky-network.org/api',
   } = options;
 
@@ -90,6 +96,7 @@ export async function fetchSnapshot(options: FetchOptions): Promise<Snapshot> {
   return {
     time: body.time,
     targets: (body.states ?? []).map(row => parseStateVector(row, body.time)),
+    raw: body.states ?? [],
     budget: readBudget(response.headers),
   };
 }

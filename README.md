@@ -65,7 +65,7 @@ it was recorded is still four minutes stale on screen. A mock that made
 everything fresh would hide the exact case the display exists to handle.
 
 ```bash
-npm test                       # 46 tests, no network, about a second
+npm test                       # 48 tests, no network, about a second
 ```
 
 ## How it works
@@ -144,8 +144,8 @@ src/core/      geo · target · box    pure functions, no DOM, no network
 src/server/    token · opensky       the only code that talks to OpenSky
 api/states.ts  the endpoint          Web Request/Response, exported as GET
 public/        the display           canvas, one stylesheet, no framework
-scripts/       dev-server · strip · mock · probe
-test/          46 tests, fixture-backed
+scripts/       dev-server · strip · mock · record · probe
+test/          48 tests, fixture-backed
 ```
 
 `api/states.ts` takes a Web `Request` and returns a Web `Response`, exported as
@@ -154,10 +154,44 @@ Node `(req, res)` signature, where a returned `Response` is ignored and the
 request hangs. The local dev server imports the very same function, so what runs
 in development is what runs in production.
 
-## Deploy
+## The deployed page is a replay, and says so
 
-Set `OPENSKY_CLIENT_ID` and `OPENSKY_CLIENT_SECRET` in the host's environment
-variables. Nothing else: there is no build to configure.
+**OpenSky refuses connections from data centres.** This was not in the plan; it
+was found by deploying and reading the error.
+
+| From | Connecting to `auth.opensky-network.org:443` |
+| --- | --- |
+| A home connection | connects in 39 ms |
+| Vercel, Washington (`iad1`) | connect timeout after 10 s |
+| Vercel, Stockholm (`arn1`) | connect timeout after 10 s |
+| Cloudflare Workers | HTTP 522, connect timeout |
+
+Three data-centre networks on two continents fail at the same hop, while a
+domestic line reaches the same single IPv4 address in under fifty milliseconds.
+That is a filter, not congestion — and an entirely reasonable defence for a free
+academic service.
+
+So the deployed display cannot be live, and there are only two honest options:
+show nothing, or show a recording and call it a recording. It shows a recording.
+`scripts/record.ts` captures real traffic at the same eight-second cadence the
+live display uses, and the page replays it at the speed it happened. The status
+reads **REPLAY**, never LIVE; the panel explains what you are looking at; the
+screen reader is told the same thing. Every age on screen is the true age that
+position had at that moment, because the timestamps are the recorded ones.
+
+Run it locally with credentials and it is live — the page uses whichever it
+finds, and says which.
+
+### Deploying it
+
+The replay needs no server at all: it is a static directory. Any static host
+works, including GitHub Pages.
+
+To deploy the live version somewhere, set `OPENSKY_CLIENT_ID` and
+`OPENSKY_CLIENT_SECRET` in the host's environment — and pick a host whose egress
+OpenSky will actually answer, which as of this writing is neither of the two
+above. `worker.ts` is a Cloudflare entry point kept for that reason: the code is
+ready, the network is not.
 
 ## Data
 
