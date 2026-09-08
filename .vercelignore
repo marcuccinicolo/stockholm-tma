@@ -1,0 +1,9 @@
+# The deployed page is a replay: OpenSky is unreachable from data centres, so
+# there is nothing for a serverless function to proxy. Shipping it anyway would
+# mean a function invocation on every page load that can only ever fail.
+api/
+src/server/
+worker.ts
+wrangler.toml
+scripts/
+test/

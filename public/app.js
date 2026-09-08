@@ -9,7 +9,7 @@
 // `Date.now()`: the ages on screen are relative to OpenSky's clock, and a
 // viewer whose laptop is ten minutes out must still see the truth.
 
-import { project, isDisplayable } from '/core/target.js';
+import { project, isDisplayable, parseStateVector } from '/core/target.js';
 import { STOCKHOLM as BOX } from '/core/box.js';
 
 const REFRESH_MS = 8000;
@@ -23,6 +23,7 @@ const el = {
   budget: document.getElementById('budget'),
   tooltip: document.getElementById('tooltip'),
   tableBody: document.getElementById('table-body'),
+  modeNote: document.getElementById('mode-note'),
   liveStatus: document.getElementById('live-status'),
 };
 
@@ -38,6 +39,8 @@ const state = {
   budget: null,
   drawn: [],
   pointer: null,
+  /** The snapshot the accessible table was last built from. */
+  tabledSnapshot: null,
 };
 
 /* -------------------------------------------------------------- projection */
@@ -289,6 +292,10 @@ function render() {
   }
 
   updateReadout(elapsed);
+  if (state.snapshot !== state.tabledSnapshot) {
+    state.tabledSnapshot = state.snapshot;
+    updateTable();
+  }
   drawTooltip();
 }
 
@@ -319,15 +326,19 @@ function setStatus(status) {
   if (state.status === status) return;
   state.status = status;
   el.status.textContent = status;
-  el.status.className = `pill pill--${status === 'degraded' ? 'degraded' : status === 'mock' ? 'mock' : 'live'}`;
+  el.status.className = `pill pill--${
+    status === 'degraded' ? 'degraded' : status === 'live' ? 'live' : 'mock'}`;
+  // A viewer should not have to read the source to learn they are watching a
+  // recording, so the panel says it in words as well as in the status pill.
+  if (el.modeNote) el.modeNote.hidden = status !== 'replay';
   const contacts = state.snapshot?.targets.length ?? 0;
   el.liveStatus.textContent =
     status === 'degraded'
       ? 'Connection lost. Showing the last known positions, which are ageing.'
-      : status === 'mock'
-        // The screen reader should not be told this is live when it is a replay.
-        ? `Replaying a recorded snapshot. ${contacts} contacts.`
-        : `Live. ${contacts} contacts.`;
+      : status === 'live'
+        ? `Live. ${contacts} contacts.`
+        // The screen reader must not be told this is live when it is a replay.
+        : `Replaying recorded traffic. ${contacts} contacts.`;
 }
 
 function updateTable() {
@@ -387,17 +398,22 @@ function drawTooltip() {
 
 /* ------------------------------------------------------------------- fetch */
 
+function receive(snapshot, status) {
+  state.snapshot = snapshot;
+  state.receivedAt = performance.now();
+  state.budget = snapshot.budget?.remaining ?? null;
+  setStatus(status);
+  // The table is not built here: it lists what is on screen, and nothing is on
+  // screen until the next frame is drawn. render() rebuilds it once per
+  // snapshot, after the targets have actually been projected.
+}
+
 async function refresh() {
   try {
     const response = await fetch('/api/states', { cache: 'no-store' });
     if (!response.ok) throw new Error(`endpoint returned ${response.status}`);
-
     const snapshot = await response.json();
-    state.snapshot = snapshot;
-    state.receivedAt = performance.now();
-    state.budget = snapshot.budget?.remaining ?? null;
-    setStatus(snapshot.mock ? 'mock' : 'live');
-    updateTable();
+    receive(snapshot, snapshot.mock ? 'mock' : 'live');
   } catch (error) {
     // The previous snapshot is deliberately kept. It keeps ageing on screen,
     // which is the honest thing to show — an empty display would suggest an
@@ -405,6 +421,57 @@ async function refresh() {
     console.warn('refresh failed:', error);
     setStatus('degraded');
   }
+}
+
+/* ------------------------------------------------------------------ replay */
+
+/**
+ * The deployed display has no live source. OpenSky refuses connections from
+ * data centres — verified from two Vercel regions and from Cloudflare Workers,
+ * while a home connection reaches it in under fifty milliseconds — so there is
+ * no honest way to serve live data from static hosting.
+ *
+ * Rather than invent traffic, it replays a recording of the real thing at the
+ * speed it happened, and labels itself REPLAY rather than LIVE. Every age on
+ * screen is the true age that aircraft's position had at that moment.
+ */
+async function startReplay() {
+  const response = await fetch('/data/replay.json');
+  if (!response.ok) throw new Error(`no recording available (${response.status})`);
+
+  const { snapshots } = await response.json();
+  if (!Array.isArray(snapshots) || snapshots.length < 2) throw new Error('recording too short');
+
+  const origin = snapshots[0].time;
+  let index = -1;
+  let startedAt = performance.now();
+
+  const step = () => {
+    const elapsed = (performance.now() - startedAt) / 1000;
+
+    let next = index;
+    while (next + 1 < snapshots.length && snapshots[next + 1].time - origin <= elapsed) next++;
+
+    if (next === index) {
+      // Past the end of the recording, start it again from the top.
+      if (elapsed > snapshots.at(-1).time - origin + 8) {
+        index = -1;
+        startedAt = performance.now();
+      }
+      return;
+    }
+
+    index = next;
+    const frame = snapshots[index];
+    receive({
+      time: frame.time,
+      targets: frame.states.map(row => parseStateVector(row, frame.time)),
+      budget: { remaining: null },
+    }, 'replay');
+  };
+
+  step();
+  setInterval(step, 500);
 }
 
 /* -------------------------------------------------------------------- boot */
@@ -425,8 +492,17 @@ el.canvas.addEventListener('pointermove', (event) => {
 el.canvas.addEventListener('pointerleave', () => { state.pointer = null; });
 
 resize();
-await refresh();
-setInterval(refresh, REFRESH_MS);
+
+// Live if an endpoint answers, a recording if not. On static hosting there is
+// no endpoint, so the 404 is expected and is not an error worth shouting about.
+try {
+  const probe = await fetch('/api/states', { cache: 'no-store' });
+  if (!probe.ok) throw new Error(String(probe.status));
+  receive(await probe.json(), 'live');
+  setInterval(refresh, REFRESH_MS);
+} catch {
+  await startReplay();
+}
 
 if (reducedMotion.matches) {
   // No animation: positions update once per snapshot. The ages still advance,

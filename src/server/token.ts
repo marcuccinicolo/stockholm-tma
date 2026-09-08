@@ -46,7 +46,11 @@ export class TokenManager {
     this.#clientId = options.clientId;
     this.#clientSecret = options.clientSecret;
     this.#tokenUrl = options.tokenUrl ?? OPENSKY_TOKEN_URL;
-    this.#fetch = options.fetchImpl ?? fetch;
+    // Bound to globalThis on purpose. Stored as a bare reference and then
+    // called as `this.#fetch(...)`, the receiver becomes this instance —
+    // which Node tolerates and Cloudflare Workers rejects outright with
+    // "Illegal invocation".
+    this.#fetch = options.fetchImpl ?? globalThis.fetch.bind(globalThis);
     this.#now = options.now ?? Date.now;
     this.#margin = options.refreshMarginMs ?? 60_000;
   }
